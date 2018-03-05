@@ -1,0 +1,98 @@
+apply plugin: 'java' //Java套件會被相依進來
+apply plugin: 'maven'
+apply plugin: 'eclipse-wtp' //elipse的web專案套件
+apply plugin: 'war'
+
+version = '1.0.0'
+group = 'com.e104.plus'
+def groupId = 'com.e104.plus'
+def artifactId = rootProject.name
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+compileJava.options.encoding = 'UTF-8' //原始碼編譯時的編碼
+javadoc.options.encoding = 'UTF-8'
+
+//gradle 參數
+configurations {
+	testCompile
+    provided {
+    	dependencies.all { dep ->
+            configurations.default.exclude group: dep.group, module: dep.name
+        }
+    }
+    compile.extendsFrom provided
+}
+
+//全域變數
+ext {
+	springVersion = '4.3.1.RELEASE'
+	jacksonVersion = '2.7.5'
+}
+
+//來源管理(函式庫來源)
+repositories {
+	mavenCentral()
+}
+
+//函式庫管理
+dependencies {
+	testCompile group: 'junit', name: 'junit', version: '4.11'
+	testCompile group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.3'
+	testCompile group: 'org.testng', name: 'testng', version: '6.8.8'
+	compile group: 'org.springframework', name: 'spring-core', version: springVersion
+	compile group: 'org.springframework', name: 'spring-beans', version: springVersion
+	compile group: 'org.springframework', name: 'spring-context', version: springVersion
+	compile group: 'org.springframework', name: 'spring-webmvc', version: springVersion
+	compile group: 'commons-lang', name:'commons-lang', version:'2.5'
+	compile group: 'commons-beanutils', name:'commons-beanutils', version:'1.8.0'
+	compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: jacksonVersion
+	compile group: 'com.squareup.retrofit2', name: 'retrofit', version: '2.3.0'
+	compile group: 'com.squareup.retrofit2', name: 'converter-jackson', version: '2.3.0'
+	providedCompile group: 'javax.servlet', name: 'javax.servlet-api', version: '3.0.1'
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs 'src/main/java'
+        }
+    }
+}
+
+
+war {
+    classpath fileTree(dir: 'src/main/java', include: '*').files
+    //webInf { from 'src/additionalWebInf' } // adds a file-set to the WEB-INF dir.
+    //classpath fileTree('additionalLibs') // adds a file-set to the WEB-INF/lib dir.
+    //classpath configurations.moreLibs // adds a configuration to the WEB-INF/lib dir.
+    //webXml = file('src/someWeb.xml') // copies a file to WEB-INF/web.xml
+}
+
+
+
+//執行testNG測試
+/*
+test {
+	useTestNG {
+		suites(file('src/test/java/TestNG.xml'))
+		useDefaultListeners = true
+	}
+	beforeTest { descriptor ->  
+      logger.lifecycle("Running test: " + descriptor)  
+    }
+}
+*/
+
+eclipse {
+
+  wtp {
+    component {
+
+      //define context path, default to project folder name
+      contextPath = 'RestClient'
+
+    }
+
+  }
+}
