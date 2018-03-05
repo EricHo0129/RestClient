@@ -1,8 +1,10 @@
 package com.eric.spring.controller;
 
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -18,8 +20,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
+import okhttp3.Protocol;
 import okhttp3.Request;
-import okhttp3.Interceptor.Chain;
+import okhttp3.RequestBody;
+import okhttp3.ResponseBody;
+import okhttp3.Interceptor.Chain;import okhttp3.MediaType;
 import retrofit2.Call;
 import retrofit2.Response;
 import retrofit2.Retrofit;
@@ -35,13 +40,23 @@ public class RetrofitProfile {
 	@GetMapping("/retrofit")
 	public ResponseEntity<Map<Long, ProfileModel>> getProfileList() throws Exception {
 		OkHttpClient client = new OkHttpClient.Builder()
+				.readTimeout(200, TimeUnit.MILLISECONDS)
+				.connectTimeout(200, TimeUnit.MILLISECONDS)
 				.addInterceptor(new Interceptor() {
 					@Override
 					public okhttp3.Response intercept(Chain chain) throws IOException {
 						Request request = chain.request().newBuilder()
 								.addHeader("104-API-Key", apiKey)
 								.build();
-						return chain.proceed(request);
+						try {							
+							return chain.proceed(request);
+						} catch (SocketTimeoutException ste) {
+							return new okhttp3.Response.Builder()
+									.protocol(Protocol.HTTP_1_1)
+									.message("timeout")
+									.body(ResponseBody.create(MediaType.parse("application/json"), "{}"))
+									.request(request).code(HttpStatus.INTERNAL_SERVER_ERROR.value()).build();
+						}
 					}
 				})
 				.build();
@@ -51,13 +66,15 @@ public class RetrofitProfile {
 				.addConverterFactory(JacksonConverterFactory.create())
 				.build();
 		ProfileRestful profileAPI = retrofit.create(ProfileRestful.class);
-		Call<ResponseModel> call = profileAPI.getProfiles(new Long[] {100024L, 103473L}, new String[] {"userName"});
+		Call<ResponseModel> call = profileAPI.getProfiles(new Long[] {100024L, 103473L}, new String[] {"userName"});			
 		Response<ResponseModel> resp = call.execute();
 		Map<Long, ProfileModel> result = new HashMap<Long, ProfileModel>();
 		if (resp.code() == 200) {
 			ObjectMapper mapper = Jackson2ObjectMapperBuilder.json().build();
 			result = mapper.readValue(mapper.writeValueAsBytes(resp.body().getResponse()), Map.class);
+			return new ResponseEntity<Map<Long, ProfileModel>>(result, HttpStatus.OK);
+		} else {
+			return new ResponseEntity<Map<Long, ProfileModel>>(result, HttpStatus.GATEWAY_TIMEOUT);
 		}
-		return new ResponseEntity<Map<Long, ProfileModel>>(result, HttpStatus.OK);
 	}
 }
